@@ -1,0 +1,159 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Dark AI theme with glow effects
+   * tailwind.config.ts expects the following color variables to be expressed as HSL values.
+  */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* AI Theme specific colors */
+    --ai-primary: 280 100% 68%;
+    --ai-secondary: 200 100% 50%;
+    --ai-accent: 340 100% 60%;
+    --ai-dark-bg: 240 10% 8%;
+    --ai-card-bg: 240 10% 13%;
+    --ai-border: 240 10% 20%;
+    --ai-text: 240 10% 95%;
+    --ai-text-secondary: 240 10% 65%;
+  }
+
+  .dark {
+    --background: 240 10% 8%;
+    --foreground: 240 10% 95%;
+
+    --card: 240 10% 13%;
+    --card-foreground: 240 10% 95%;
+
+    --popover: 240 10% 13%;
+    --popover-foreground: 240 10% 95%;
+
+    --primary: 280 100% 68%;
+    --primary-foreground: 240 10% 8%;
+
+    --secondary: 200 100% 50%;
+    --secondary-foreground: 240 10% 8%;
+
+    --muted: 240 10% 25%;
+    --muted-foreground: 240 10% 65%;
+
+    --accent: 340 100% 60%;
+    --accent-foreground: 240 10% 8%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 240 10% 8%;
+
+    --border: 240 10% 20%;
+    --input: 240 10% 20%;
+    --ring: 280 100% 68%;
+
+    --sidebar-background: 240 10% 10%;
+    --sidebar-foreground: 240 10% 90%;
+    --sidebar-primary: 280 100% 68%;
+    --sidebar-primary-foreground: 240 10% 8%;
+    --sidebar-accent: 200 100% 50%;
+    --sidebar-accent-foreground: 240 10% 8%;
+    --sidebar-border: 240 10% 20%;
+    --sidebar-ring: 280 100% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+}
+
+@layer components {
+  .glow-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400;
+    text-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+  }
+
+  .glow-card {
+    @apply relative bg-slate-900/50 border border-purple-500/20 rounded-lg overflow-hidden backdrop-blur-xl;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.1), inset 0 0 20px rgba(168, 85, 247, 0.05);
+  }
+
+  .glow-card-hover {
+    @apply glow-card transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_30px_rgba(168,85,247,0.3),inset_0_0_30px_rgba(168,85,247,0.1)];
+  }
+
+  .gradient-border {
+    @apply relative rounded-lg p-px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(59, 130, 246, 0.2));
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+}
