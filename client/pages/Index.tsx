@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Upload,
@@ -8,6 +8,7 @@ import {
   Globe,
   Zap,
   Play,
+  Pause,
   Download,
   Volume2,
   ChevronDown,
@@ -47,25 +48,15 @@ const pipelineSteps = [
 ];
 
 const languages = [
-  'Hindi',
-  'Bengali',
-  'Marathi',
-  'Telugu',
-  'Kannada',
-  'Bhojpuri',
-  'Magahi',
-  'Chhattisgarhi',
-  'Maithili',
-  'Assamese',
-  'Bodo',
-  'Dogri',
-  'Gujarati',
-  'Malayalam',
-  'Punjabi',
   'Tamil',
-  'English',
-  'Nepali',
-  'Sanskrit',
+  'Hindi',
+  'Telugu',
+  'Malayalam',
+  'Kannada',
+  'Chinese',
+  'Arabic',
+  'French',
+  'Russian',
 ];
 
 export default function Index() {
@@ -73,35 +64,21 @@ export default function Index() {
   const [uploadedAudio, setUploadedAudio] = useState<File | null>(null);
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const [selectedVoiceMode, setSelectedVoiceMode] = useState<'zero-shot' | 'clone'>('zero-shot');
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [selectedLanguage, setSelectedLanguage] = useState('Tamil');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [hasOutput, setHasOutput] = useState(false);
   const [originalTranscript, setOriginalTranscript] = useState('');
   const [translatedTranscript, setTranslatedTranscript] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef<HTMLAudioElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioDropzoneRef = useRef<HTMLDivElement>(null);
   const videoDropzoneRef = useRef<HTMLDivElement>(null);
 
-  // Translation dictionary for sample transcripts
-  const translations: { [key: string]: string } = {
-    'Hindi': 'प्रौद्योगिकी का भविष्य कृत्रिम बुद्धिमत्ता और मशीन लर्निंग नवाचारों द्वारा आकार दिया जा रहा है। ये प्रगति उद्योगों को बदल रही है और अद्भुत तरीकों से हमारे दैनिक जीवन में सुधार कर रही है।',
-    'Bengali': 'প্রযুক্তির ভবিষ্যত কৃত্রিম বুদ্ধিমত্তা এবং মেশিন লার্নিং উদ্ভাবন দ্বারা গঠিত হচ্ছে। এই অগ্রগতিগুলি শিল্পগুলিকে রূপান্তরিত করছে এবং অসাধারণ উপায়ে আমাদের দৈনন্দিন জীবনকে উন্নত করছে।',
-    'Marathi': 'तंत्रज्ञानाचा भविष्य कृत्रिम बुद्धिमत्ता आणि मशीन लर्निंग नवीनतेने आकार दिला जात आहे. या प्रगतीचा उद्योगांना रूपांतरण घडवित आहे आणि अद्भुत मार्गांनी आपल्या दैनंदिन जीवनामध्ये सुधार घडवित आहे.',
-    'Tamil': 'தொழில்நுட்பத்தின் ভবிষ்यत் செயற்கை நுண்ணறிவு மற்றும் இயந்திர შிक্ষை கண்டுபிடிப்புகளால் வடிவமைக்கப்பட்டு வருகிறது. இந்த முன்னேற்றங்கள் தொழிலை மாற்றி வருகின்றன மற்றும் அற்புதமான வழிகளில் நமது நாள்தோறும் வாழ்க்கையை மேம்படுத்தி வருகின்றன।',
-    'Kannada': 'ತಂತ್ರಜ್ಞಾನದ ಭವಿಷ್ಯತ್ತು ಕೃತ್ರಿಮ ಬುದ್ಧಿಮತ್ತೆ ಮತ್ತು ಯಂತ್ರ ಕಲನ ಉದ್ಭಾವನಗಳಿಂದ ರೂಪುಗೊಳ್ಳುತ್ತಿದೆ. ಈ ಪ್ರಗತಿಗಳು ಕೈಗಾರಿಕೆಗಳನ್ನು ರೂಪಾಂತರಿಸುತ್ತಿವೆ ಮತ್ತು ಅದ್ಭುತ ರೀತಿಗಳಲ್ಲಿ ನಮ್ಮ ದೈನಂದಿನ ಜೀವನವನ್ನು ಸುಧಾರಿಸುತ್ತಿವೆ.',
-    'Telugu': 'సాంకేతికత యొక్క భవిష్యత్ కృత్రిమ మేధస్సు మరియు యంత్ర శిక్ష ఆవిష్కరణల ద్వారా ఆకారం చేయబడుతోంది. ఈ పురోగతులు పరిశ్రమలను రూపాంతరం చేస్తున్నాయి మరియు అద్భుత మార్గాలలో మన రోజువారీ జీవితాన్ని మెరుగుపరుస్తున్నాయి.',
-    'English': 'The future of technology is being shaped by artificial intelligence and machine learning innovations. These advancements are transforming industries and improving our daily lives in remarkable ways.',
-  };
-
-  // Update translated transcript when language or original transcript changes
-  useEffect(() => {
-    if (originalTranscript) {
-      setTranslatedTranscript(translations[selectedLanguage] || translations['English']);
-    }
-  }, [selectedLanguage, originalTranscript]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -133,30 +110,60 @@ export default function Index() {
   const handleGenerateClick = async () => {
     setIsProcessing(true);
     setActiveStep(0);
+    setOriginalTranscript('');
+    setTranslatedTranscript('');
 
-    // Simulate pipeline steps
-    for (let i = 0; i < pipelineSteps.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setActiveStep(i + 1);
+    try {
+      // Build FormData for the backend
+      const formData = new FormData();
+      formData.append('target_language', selectedLanguage);
+      formData.append('mode', selectedVoiceMode);
+
+      if (youtubeUrl) {
+        formData.append('url', youtubeUrl);
+      } else if (uploadedAudio) {
+        formData.append('file', uploadedAudio);
+      } else if (uploadedVideo) {
+        formData.append('file', uploadedVideo);
+      }
+
+      // Animate pipeline steps while the request is in-flight
+      const stepAnimation = (async () => {
+        for (let i = 0; i < pipelineSteps.length; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          setActiveStep(i + 1);
+        }
+      })();
+
+      const response = await fetch('http://localhost:8000/api/generate', {
+        method: 'POST',
+        body: formData,
+      });
+
+      // Wait for animation to finish
+      await stepAnimation;
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.detail || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      setOriginalTranscript(data.original_text || '');
+      setTranslatedTranscript(data.translated_text || '');
+      if (data.audio_url) {
+        setAudioUrl(data.audio_url + '?t=' + Date.now());
+        setIsPlaying(false);
+      }
+      setHasOutput(true);
+    } catch (error: any) {
+      console.error('Generation failed:', error);
+      setOriginalTranscript(`Error: ${error.message}`);
+      setHasOutput(true);
+    } finally {
+      setIsProcessing(false);
     }
-
-    // Set sample transcript data
-    const sampleOriginal = "The future of technology is being shaped by artificial intelligence and machine learning innovations. These advancements are transforming industries and improving our daily lives in remarkable ways.";
-
-    const translations: { [key: string]: string } = {
-      'Hindi': 'प्रौद्योगिकी का भविष्य कृत्रिम बुद्धिमत्ता और मशीन लर्निंग नवाचारों द्वारा आकार दिया जा रहा है। ये प्रगति उद्योगों को बदल रही है और अद्भुत तरीकों से हमारे दैनिक जीवन में सुधार कर रही है।',
-      'Bengali': 'প্রযুক্তির ভবিষ্যত কৃত্রিম বুদ্ধিমত্তা এবং মেশিন লার্নিং উদ্ভাবন দ্বারা গঠিত হচ্ছে। এই অগ্রগতিগুলি শিল্পগুলিকে রূপান্তরিত করছে এবং অসাধারণ উপায়ে আমাদের দৈনন্দিন জীবনকে উন্নত করছে।',
-      'Marathi': 'तंत्रज्ञानाचा भविष्य कृत्रिम बुद्धिमत्ता आणि मशीन लर्निंग नवीनतेने आकार दिला जात आहे. या प्रगतीचा उद्योगांना रूपांतरण घडवित आहे आणि अद्भुत मार्गांनी आपल्या दैनंदिन जीवनामध्ये सुधार घडवित आहे.',
-      'Tamil': 'தொழில்நுட்பத்தின் ভবিष்यত் செயற்கை நுண்ணறிவு மற்றும் இயந்திர শिक்ষை கண்டுபிடிப்புகளால் வடிவமைக்கப்பட்டு வருகிறது. இந்த முன்னேற்றங்கள் தொழிलை மாற்றி வருகின்றன மற்றும் அற்புதமான வழிகளில் நமது நாள்தோறும் வாழ்க்கையை மேம்படுத்தி வருகின்றன।',
-      'Kannada': 'ತಂತ್ರಜ್ಞಾನದ ಭವಿಷ್ಯತ್ತು ಕೃತ್ರಿಮ ಬುದ್ಧಿಮತ್ತೆ ಮತ್ತು ಯಂತ್ರ ಕಲನ ಉದ್ಭಾವನಗಳಿಂದ ರೂಪುಗೊಳ್ಳುತ್ತಿದೆ. ಈ ಪ್ರಗತಿಗಳು ಕೈಗಾರಿಕೆಗಳನ್ನು ರೂಪಾಂತರಿಸುತ್ತಿವೆ ಮತ್ತು ಅದ್ಭುತ ರೀತಿಗಳಲ್ಲಿ ನಮ್ಮ ದೈನಂದಿನ ಜೀವನವನ್ನು ಸುಧಾರಿಸುತ್ತಿವೆ.',
-      'Telugu': 'సాంకేతికత యొక్క భవిష్యత్ కృత్రిమ మేధస్సు మరియు యంత్ర శిక్ష ఆవిష్కరణల ద్వారా ఆకారం చేయబడుతోంది. ఈ పురోగతులు పరిశ్రమలను రూపాంతరం చేస్తున్నాయి మరియు అద్భుత మార్గాలలో మన రోజువారీ జీవితాన్ని మెరుగుపరుస్తున్నాయి.',
-      'English': 'The future of technology is being shaped by artificial intelligence and machine learning innovations. These advancements are transforming industries and improving our daily lives in remarkable ways.',
-    };
-
-    setOriginalTranscript(sampleOriginal);
-    setTranslatedTranscript(translations[selectedLanguage] || translations['English']);
-    setIsProcessing(false);
-    setHasOutput(true);
   };
 
   return (
@@ -402,9 +409,9 @@ export default function Index() {
             Select Target Language
           </motion.h2>
 
-          <div className="max-w-sm mx-auto">
+          <div className="max-w-sm mx-auto relative z-50">
             <motion.div
-              className="glow-card p-2 relative"
+              className="glow-card !overflow-visible p-2 relative"
               variants={itemVariants}
               initial="hidden"
               whileInView="visible"
@@ -561,15 +568,47 @@ export default function Index() {
                 </div>
               </div>
 
+              {audioUrl && (
+                <audio
+                  ref={playerRef}
+                  src={audioUrl}
+                  preload="auto"
+                  onEnded={() => setIsPlaying(false)}
+                  onError={(e) => console.error('Audio error:', e)}
+                />
+              )}
+
               <div className="flex gap-3">
-                <button className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all">
-                  <Play className="w-5 h-5" />
-                  Play
+                <button
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
+                  onClick={async () => {
+                    const audio = playerRef.current;
+                    if (!audio) return;
+                    if (isPlaying) {
+                      audio.pause();
+                      setIsPlaying(false);
+                    } else {
+                      try {
+                        audio.currentTime = 0;
+                        await audio.play();
+                        setIsPlaying(true);
+                      } catch (err) {
+                        console.error('Playback failed:', err);
+                      }
+                    }
+                  }}
+                >
+                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                  {isPlaying ? 'Pause' : 'Play'}
                 </button>
-                <button className="flex-1 bg-slate-800/50 hover:bg-slate-700/50 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 border border-purple-500/20 hover:border-purple-500/50 transition-all">
+                <a
+                  href={audioUrl}
+                  download="generated_voice.wav"
+                  className="flex-1 bg-slate-800/50 hover:bg-slate-700/50 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 border border-purple-500/20 hover:border-purple-500/50 transition-all"
+                >
                   <Download className="w-5 h-5" />
                   Download
-                </button>
+                </a>
               </div>
             </div>
           </motion.section>
