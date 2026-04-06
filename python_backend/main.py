@@ -1,4 +1,5 @@
 import glob
+import io
 import os
 import shutil
 import subprocess
@@ -6,10 +7,15 @@ from typing import Optional
 
 import edge_tts
 import yt_dlp
+from docx import Document
+from docx.oxml.ns import qn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from fpdf import FPDF
 from openai import OpenAI
+from pydantic import BaseModel
 
 # ── OpenAI client configuration ──────────────────────────────────────────────
 client = OpenAI(
@@ -213,6 +219,128 @@ async def generate(
             "translated_text": translated_text,
             "audio_url": audio_url,
         }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Transcript download request model ────────────────────────────────────────
+class TranscriptDownloadRequest(BaseModel):
+    text: str
+    format: str  # "pdf" or "docx"
+    filename: str
+
+
+def contains_non_ascii(text: str) -> bool:
+    return any(ord(ch) > 127 for ch in text)
+
+
+def contains_tamil(text: str) -> bool:
+    return any("\u0B80" <= ch <= "\u0BFF" for ch in text)
+
+
+# ── Transcript download endpoint ─────────────────────────────────────────────
+@app.post("/api/download-transcript")
+async def download_transcript(req: TranscriptDownloadRequest):
+    safe_name = req.filename.strip() or "transcript"
+
+    try:
+        if req.format == "pdf":
+            pdf = FPDF()
+            pdf.add_page()
+
+            windir = os.environ.get("WINDIR", "C:\\Windows")
+            windows_font_dir = os.path.join(windir, "Fonts")
+
+            # Prioritize script-capable fonts so Tamil PDF output is rendered correctly.
+            if contains_tamil(req.text):
+                font_paths = [
+                    os.path.join(windows_font_dir, "Nirmala.ttf"),
+                    os.path.join(windows_font_dir, "NirmalaS.ttf"),
+                    os.path.join(windows_font_dir, "Latha.ttf"),
+                    os.path.join(windows_font_dir, "Vijaya.ttf"),
+                    os.path.join(windows_font_dir, "NotoSansTamil-Regular.ttf"),
+                    "/usr/share/fonts/truetype/noto/NotoSansTamil-Regular.ttf",
+                    "/usr/share/fonts/truetype/noto/NotoSerifTamil-Regular.ttf",
+                ]
+            else:
+                font_paths = [
+                    os.path.join(windows_font_dir, "NotoSans-Regular.ttf"),
+                    os.path.join(windows_font_dir, "arial.ttf"),
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+                ]
+
+            font_loaded = False
+            seen_paths = set()
+            for fpath in font_paths:
+                if fpath in seen_paths:
+                    continue
+                seen_paths.add(fpath)
+                if os.path.isfile(fpath):
+                    pdf.add_font("UniFont", "", fpath, uni=True)
+                    pdf.set_font("UniFont", size=12)
+                    font_loaded = True
+                    break
+
+            if not font_loaded:
+                if contains_non_ascii(req.text):
+                    raise HTTPException(
+                        status_code=500,
+                        detail="No Unicode font found for multilingual PDF text. Try DOCX export or install a Tamil-capable font (Nirmala/Latha/Noto Sans Tamil).",
+                    )
+                pdf.set_font("Helvetica", size=12)
+
+            pdf.multi_cell(0, 8, req.text)
+
+            buf = io.BytesIO(pdf.output())
+            buf.seek(0)
+
+            return StreamingResponse(
+                buf,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_name}.pdf"'
+                },
+            )
+
+        elif req.format == "docx":
+            doc = Document()
+
+            if contains_tamil(req.text):
+                # Force a Tamil-capable font so Word doesn't render tofu boxes.
+                normal_style = doc.styles["Normal"]
+                normal_style.font.name = "Nirmala UI"
+                normal_style._element.rPr.rFonts.set(qn("w:ascii"), "Nirmala UI")
+                normal_style._element.rPr.rFonts.set(qn("w:hAnsi"), "Nirmala UI")
+                normal_style._element.rPr.rFonts.set(qn("w:eastAsia"), "Nirmala UI")
+                normal_style._element.rPr.rFonts.set(qn("w:cs"), "Nirmala UI")
+
+            p = doc.add_paragraph(req.text)
+            if contains_tamil(req.text):
+                for run in p.runs:
+                    run.font.name = "Nirmala UI"
+                    run._element.rPr.rFonts.set(qn("w:ascii"), "Nirmala UI")
+                    run._element.rPr.rFonts.set(qn("w:hAnsi"), "Nirmala UI")
+                    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Nirmala UI")
+                    run._element.rPr.rFonts.set(qn("w:cs"), "Nirmala UI")
+
+            buf = io.BytesIO()
+            doc.save(buf)
+            buf.seek(0)
+
+            return StreamingResponse(
+                buf,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_name}.docx"'
+                },
+            )
+
+        else:
+            raise HTTPException(status_code=400, detail="Format must be 'pdf' or 'docx'.")
 
     except HTTPException:
         raise
